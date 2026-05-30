@@ -1,0 +1,10 @@
+[
+  {
+    "question": "Why does the demo combine semantic retrieval and BM25?",
+    "expected_terms": ["semantic", "BM25", "scientific terms", "acronyms"]
+  },
+  {
+    "question": "What limitations are mentioned?",
+    "expected_terms": ["OCR", "table", "production"]
+  }
+]

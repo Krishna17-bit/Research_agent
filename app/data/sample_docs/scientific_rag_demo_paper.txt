@@ -1,0 +1,13 @@
+Title: A Demonstration Study on Citation-Grounded Retrieval-Augmented Generation for Scientific Documents
+
+Abstract: Scientific teams often work with long technical papers, experimental reports, protocols, and simulation notes. Conventional chat assistants can produce fluent but unsupported answers. This demonstration presents a citation-grounded retrieval-augmented generation workflow that retrieves page-aware passages, ranks evidence using hybrid semantic and lexical search, and generates answers only from retrieved context.
+
+Introduction: Technical PDF question answering requires more than keyword search. Equations, assumptions, datasets, and limitations are frequently distributed across sections. A robust research assistant should preserve document provenance, expose supporting evidence, and warn users when the retrieved context is insufficient.
+
+Method: The system extracts text from documents, splits it into overlapping page-aware chunks, and indexes each chunk using two complementary retrieval methods. Semantic retrieval captures meaning, while BM25 lexical retrieval captures exact scientific terms, acronyms, variable names, and rare dataset identifiers. The final retrieval score combines both signals. A generation layer receives only the selected evidence and must cite the original source and page.
+
+Evaluation: The recommended evaluation includes retrieval precision, citation coverage, answer faithfulness, and refusal quality when evidence is missing. For scientific workflows, it is important to inspect whether the answer is supported by the cited passage and whether equations or numerical claims are copied correctly.
+
+Limitations: This demo does not perform OCR for scanned papers. It also does not guarantee perfect table extraction. For production deployment, teams should add OCR, table structure parsing, permission-aware indexing, monitoring, and human review for high-stakes decisions.
+
+Conclusion: A scientific RAG agent is most useful when it combines hybrid retrieval, transparent citations, uncertainty disclosure, and repeatable evaluation. These properties make the system more suitable for research, compliance, legal, medical, engineering, and technical customer-support use cases.
