@@ -2,7 +2,7 @@
 
 A Gemini-powered, citation-grounded research assistant for scientific papers, technical PDFs, theses, lab reports, SOPs, and figure-heavy research documents.
 
-This project is built as a portfolio-ready and GitHub-ready demo of a practical research RAG system, not a toy chatbot. It supports PDF/TXT/MD ingestion, hybrid retrieval, citation-grounded answering, research workflows, and optional OCR for scanned or image-heavy PDFs.
+This project is built as practical research RAG system. It supports PDF/TXT/MD ingestion, hybrid retrieval, citation-grounded answering, research workflows, and optional OCR for scanned or image-heavy PDFs.
 
 ## Why this exists
 
