@@ -16,16 +16,51 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # Gemini is the only generative LLM provider in this version.
-    gemini_api_key: str | None = None
-    gemini_model: str = "gemini-1.5-pro"
+    # Active Provider configuration
+    llm_provider: str = "gemini"
+    mock_mode: bool = True
 
+    # Gemini configuration
+    gemini_api_key: str | None = None
+    gemini_model: str = "gemini-1.5-flash"  # Use flash by default as it's fast and cheap
+
+    # OpenAI configuration
+    openai_api_key: str | None = None
+    openai_model: str = "gpt-4o-mini"
+
+    # Anthropic configuration
+    anthropic_api_key: str | None = None
+    anthropic_model: str = "claude-3-5-sonnet-latest"
+
+    # Groq configuration
+    groq_api_key: str | None = None
+    groq_model: str = "llama-3.1-70b-versatile"
+
+    # Mistral configuration
+    mistral_api_key: str | None = None
+    mistral_model: str = "mistral-large-latest"
+
+    # Ollama configuration
+    ollama_base_url: str = "http://localhost:11434"
+    ollama_model: str = "llama3.1"
+
+    # Custom OpenAI-compatible configuration
+    custom_openai_base_url: str | None = None
+    custom_openai_api_key: str | None = None
+    custom_openai_model: str | None = None
+
+    # Embedding and Vector store configuration
+    embedding_provider: str = "local"
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+    vector_store: str = "faiss"
     top_k: int = 7
     chunk_size: int = 900
     chunk_overlap: int = 150
     upload_dir: Path = Path("app/storage/uploads")
     index_dir: Path = Path("app/storage/vector_index")
+    similarity_threshold: float = 0.20
+    reranker_enabled: bool = False
+
 
     # OCR/image extraction controls.
     # off  = never run OCR

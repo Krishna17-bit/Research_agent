@@ -20,9 +20,15 @@ env/
 app/storage/uploads/*
 app/storage/vector_index/*
 app/storage/page_images/*
+app/storage/chunks/*
+app/storage/embeddings/*
+app/storage/*.db
 !app/storage/uploads/.gitkeep
 !app/storage/vector_index/.gitkeep
 !app/storage/page_images/.gitkeep
+!app/storage/chunks/.gitkeep
+!app/storage/embeddings/.gitkeep
+
 
 # Local outputs
 outputs/

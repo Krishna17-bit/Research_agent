@@ -156,3 +156,59 @@ def load_document(path: Path) -> list[DocumentChunk]:
     if suffix in {".txt", ".md"}:
         return load_text_file(path)
     raise ValueError(f"Unsupported file type: {suffix}. Use PDF, TXT, or MD.")
+
+
+def extract_metadata(path: Path) -> dict:
+    """Extract metadata (title, author, year, doc_type) from a PDF or text file."""
+    import datetime
+    meta = {
+        "title": path.stem.replace("_", " ").replace("-", " ").title(),
+        "authors": "Unknown",
+        "year": str(datetime.datetime.now().year),
+        "doc_type": "paper",
+        "tags": "imported",
+        "page_count": 1
+    }
+    
+    if path.suffix.lower() == ".pdf":
+        try:
+            doc = fitz.open(path)
+            meta["page_count"] = len(doc)
+            title = doc.metadata.get("title")
+            if title and len(title.strip()) > 3:
+                meta["title"] = title.strip()
+            authors = doc.metadata.get("author")
+            if authors and len(authors.strip()) > 3:
+                meta["authors"] = authors.strip()
+            
+            creation_date = doc.metadata.get("creationDate")
+            if creation_date and len(creation_date) > 4:
+                match = re.search(r"\d{4}", creation_date)
+                if match:
+                    meta["year"] = match.group(0)
+            
+            if len(doc) > 0:
+                first_page = doc[0].get_text("text")[:2000].lower()
+                year_match = re.search(r"\b(19\d{2}|20\d{2})\b", first_page)
+                if year_match:
+                    meta["year"] = year_match.group(0)
+                
+                if "thesis" in first_page or "dissertation" in first_page:
+                    meta["doc_type"] = "thesis"
+                elif "user manual" in first_page or "instruction manual" in first_page or "reference guide" in first_page:
+                    meta["doc_type"] = "manual"
+                elif "patent" in first_page:
+                    meta["doc_type"] = "patent"
+                elif "whitepaper" in first_page or "white paper" in first_page:
+                    meta["doc_type"] = "whitepaper"
+                elif "report" in first_page:
+                    meta["doc_type"] = "report"
+                
+                if not title or len(title.strip()) < 5:
+                    lines = [l.strip() for l in doc[0].get_text("text").split("\n") if l.strip()]
+                    if lines:
+                        meta["title"] = lines[0][:150]
+        except Exception:
+            pass
+    return meta
+

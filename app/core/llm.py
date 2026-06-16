@@ -22,8 +22,23 @@ def _clean_key(value: str | None) -> str | None:
 
 
 def active_provider() -> str:
-    if _clean_key(settings.gemini_api_key):
-        return f"Gemini ({settings.gemini_model})"
+    if settings.mock_mode:
+        return f"Mock Provider ({settings.llm_provider.upper()})"
+    prov = settings.llm_provider.lower().strip()
+    if prov == "gemini":
+        return f"Gemini ({settings.gemini_model})" if _clean_key(settings.gemini_api_key) else "Gemini (Missing API Key!)"
+    elif prov == "openai":
+        return f"OpenAI ({settings.openai_model})" if _clean_key(settings.openai_api_key) else "OpenAI (Missing API Key!)"
+    elif prov == "anthropic":
+        return f"Anthropic ({settings.anthropic_model})" if _clean_key(settings.anthropic_api_key) else "Anthropic (Missing API Key!)"
+    elif prov == "groq":
+        return f"Groq ({settings.groq_model})" if _clean_key(settings.groq_api_key) else "Groq (Missing API Key!)"
+    elif prov == "mistral":
+        return f"Mistral ({settings.mistral_model})" if _clean_key(settings.mistral_api_key) else "Mistral (Missing API Key!)"
+    elif prov == "ollama":
+        return f"Ollama ({settings.ollama_model})"
+    elif prov == "custom":
+        return f"Custom API ({settings.custom_openai_model or 'custom'})"
     return "Offline extractive mode"
 
 
@@ -46,7 +61,7 @@ def offline_answer(question: str, evidence: list[SourceEvidence]) -> str:
         bullets.append(f"- {snippet} [{ev.source} p.{ev.page}]")
 
     return (
-        "No Gemini key was found, so I am using extractive evidence mode.\n\n"
+        "No LLM provider key was found and mock mode is off, so I am using extractive evidence mode.\n\n"
         f"Question: {question}\n\nMost relevant evidence:\n" + "\n".join(bullets)
     )
 
@@ -92,11 +107,57 @@ def generate_answer(question: str, evidence: list[SourceEvidence]) -> tuple[str,
             ["No evidence retrieved."],
         )
 
-    if _clean_key(settings.gemini_api_key):
+    # 1. Mock Mode
+    if settings.mock_mode:
+        from app.core.llm_providers import call_mock
         try:
-            return _generate_with_gemini(question, evidence), True, warnings
+            mock_prompt = f"{SYSTEM}\n\n{_prompt(question, evidence)}"
+            return call_mock(mock_prompt, evidence), True, warnings
         except Exception as exc:
-            warnings.append(f"Gemini call failed; used extractive fallback. Error: {exc}")
+            warnings.append(f"Mock generation failed: {exc}")
 
-    warnings.append("No GEMINI_API_KEY set; used extractive fallback.")
+    # 2. Real API Routing
+    provider = settings.llm_provider.lower().strip()
+    system_prompt = SYSTEM
+    user_prompt = _prompt(question, evidence)
+
+    try:
+        if provider == "gemini":
+            if _clean_key(settings.gemini_api_key):
+                return _generate_with_gemini(question, evidence), True, warnings
+            else:
+                raise ValueError("Missing GEMINI_API_KEY")
+
+        elif provider == "openai":
+            from app.core.llm_providers import call_openai
+            return call_openai(system_prompt, user_prompt), True, warnings
+
+        elif provider == "anthropic":
+            from app.core.llm_providers import call_anthropic
+            return call_anthropic(system_prompt, user_prompt), True, warnings
+
+        elif provider == "groq":
+            from app.core.llm_providers import call_groq
+            return call_groq(system_prompt, user_prompt), True, warnings
+
+        elif provider == "mistral":
+            from app.core.llm_providers import call_mistral
+            return call_mistral(system_prompt, user_prompt), True, warnings
+
+        elif provider == "ollama":
+            from app.core.llm_providers import call_ollama
+            return call_ollama(system_prompt, user_prompt), True, warnings
+
+        elif provider == "custom":
+            from app.core.llm_providers import call_custom_openai
+            return call_custom_openai(system_prompt, user_prompt), True, warnings
+
+        else:
+            warnings.append(f"Unknown provider: {provider}. Defaulting to extractive mode.")
+
+    except Exception as exc:
+        warnings.append(f"Provider {provider} call failed; used extractive fallback. Error: {exc}")
+
+    # 3. Fallback
     return offline_answer(question, evidence), False, warnings
+
