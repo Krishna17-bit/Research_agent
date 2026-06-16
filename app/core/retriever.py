@@ -25,6 +25,7 @@ class HybridRetriever:
     """
     Dynamic hybrid retriever. Stores embeddings and chunks per-document,
     allowing fast incremental updates and workspace-level indexing.
+    Supports local Cross-Encoder reranking.
     """
 
     def __init__(self, index_dir: Path | None = None):
@@ -40,6 +41,7 @@ class HybridRetriever:
         self.embeddings: np.ndarray | None = None
         self.bm25: BM25Okapi | None = None
         self._model = None
+        self._rerank_model = None
 
     @property
     def model(self):
@@ -47,6 +49,13 @@ class HybridRetriever:
             from sentence_transformers import SentenceTransformer
             self._model = SentenceTransformer(settings.embedding_model)
         return self._model
+
+    @property
+    def rerank_model(self):
+        if self._rerank_model is None:
+            from sentence_transformers import CrossEncoder
+            self._rerank_model = CrossEncoder(settings.reranker_model)
+        return self._rerank_model
 
     def build_from_paths(self, paths: list[Path]) -> int:
         """
@@ -95,7 +104,9 @@ class HybridRetriever:
                 tags=meta["tags"],
                 page_count=meta["page_count"],
                 chunk_count=len(chunks),
-                status="indexed"
+                status="indexed",
+                bibtex=meta["bibtex"],
+                doi=meta["doi"]
             )
             # Add to default workspace
             database.add_document_to_workspace("default", doc_id)
@@ -154,16 +165,18 @@ class HybridRetriever:
         """Mock save method for backward compatibility."""
         pass
 
-    def search(self, query: str, top_k: int | None = None, doc_ids: list[str] | None = None) -> list[SourceEvidence]:
+    def search(self, query: str, top_k: int | None = None, doc_ids: list[str] | None = None, hyde_query: str | None = None) -> list[SourceEvidence]:
         """
         Search for relevant chunks using hybrid lexical-semantic matching.
         If doc_ids is specified, search is restricted to those documents.
+        Supports Cross-Encoder reranking if enabled in settings.
         """
-        top_k = top_k or settings.top_k
+        target_k = top_k or settings.top_k
+        # Fetch more candidates for reranking if enabled
+        retrieval_k = max(25, target_k * 3) if settings.reranker_enabled else target_k
         
         # Ensure we have a loaded index
         if not self.chunks or self.embeddings is None or self.bm25 is None:
-            # If doc_ids are specified, load them, otherwise load everything
             if doc_ids is not None:
                 if not self.load_active_index(doc_ids):
                     return []
@@ -171,31 +184,28 @@ class HybridRetriever:
                 if not self.load():
                     return []
         
-        # Compile temporary subset index if doc_ids is provided and different from loaded
         loaded_doc_ids = set(c.doc_id for c in self.chunks)
+        
+        # Check if we should search subset
         if doc_ids is not None and set(doc_ids) != loaded_doc_ids:
-            # Temporarily build filter indices
             filter_indices = [i for i, c in enumerate(self.chunks) if c.doc_id in doc_ids]
             if not filter_indices:
                 return []
             
-            # Extract subset
             subset_chunks = [self.chunks[i] for i in filter_indices]
             subset_embs = self.embeddings[filter_indices]
             subset_bm25 = BM25Okapi([tokenize(c.text) for c in subset_chunks])
             
-            # Search subset
-            q_emb = normalize(self.model.encode([query], convert_to_numpy=True))
+            q_emb = normalize(self.model.encode([hyde_query or query], convert_to_numpy=True))
             vec_scores = cosine_similarity(q_emb, subset_embs)[0]
             bm25_raw = np.array(subset_bm25.get_scores(tokenize(query)), dtype=float)
             bm25_scores = bm25_raw / (bm25_raw.max() + 1e-9) if bm25_raw.size else bm25_raw
             hybrid = 0.62 * vec_scores + 0.38 * bm25_scores
             
-            # Apply similarity threshold
             valid_indices = [idx for idx in np.argsort(hybrid)[::-1] if hybrid[idx] >= settings.similarity_threshold]
-            idxs = valid_indices[:top_k]
+            candidate_idxs = valid_indices[:retrieval_k]
             
-            return [
+            candidates = [
                 SourceEvidence(
                     chunk_id=subset_chunks[i].chunk_id,
                     source=subset_chunks[i].source,
@@ -203,27 +213,46 @@ class HybridRetriever:
                     score=float(hybrid[i]),
                     text=subset_chunks[i].text,
                 )
-                for i in idxs
+                for i in candidate_idxs
+            ]
+        else:
+            # Global index search
+            q_emb = normalize(self.model.encode([hyde_query or query], convert_to_numpy=True))
+            vec_scores = cosine_similarity(q_emb, self.embeddings)[0]
+            bm25_raw = np.array(self.bm25.get_scores(tokenize(query)), dtype=float)
+            bm25_scores = bm25_raw / (bm25_raw.max() + 1e-9) if bm25_raw.size else bm25_raw
+            hybrid = 0.62 * vec_scores + 0.38 * bm25_scores
+            
+            valid_indices = [idx for idx in np.argsort(hybrid)[::-1] if hybrid[idx] >= settings.similarity_threshold]
+            candidate_idxs = valid_indices[:retrieval_k]
+            
+            candidates = [
+                SourceEvidence(
+                    chunk_id=self.chunks[i].chunk_id,
+                    source=self.chunks[i].source,
+                    page=self.chunks[i].page,
+                    score=float(hybrid[i]),
+                    text=self.chunks[i].text,
+                )
+                for i in candidate_idxs
             ]
 
-        # Normal search across all loaded chunks
-        q_emb = normalize(self.model.encode([query], convert_to_numpy=True))
-        vec_scores = cosine_similarity(q_emb, self.embeddings)[0]
-        bm25_raw = np.array(self.bm25.get_scores(tokenize(query)), dtype=float)
-        bm25_scores = bm25_raw / (bm25_raw.max() + 1e-9) if bm25_raw.size else bm25_raw
-        hybrid = 0.62 * vec_scores + 0.38 * bm25_scores
-        
-        # Apply similarity threshold
-        valid_indices = [idx for idx in np.argsort(hybrid)[::-1] if hybrid[idx] >= settings.similarity_threshold]
-        idxs = valid_indices[:top_k]
-        
-        return [
-            SourceEvidence(
-                chunk_id=self.chunks[i].chunk_id,
-                source=self.chunks[i].source,
-                page=self.chunks[i].page,
-                score=float(hybrid[i]),
-                text=self.chunks[i].text,
-            )
-            for i in idxs
-        ]
+        if not candidates:
+            return []
+
+        # 4. Optional Cross-Encoder Reranking
+        if settings.reranker_enabled:
+            try:
+                pairs = [[query, c.text] for c in candidates]
+                rerank_scores = self.rerank_model.predict(pairs)
+                # update score with reranker result
+                for idx, score in enumerate(rerank_scores):
+                    # normalize logit outputs lightly to 0-1 scale for display consistency
+                    normalized_score = 1.0 / (1.0 + np.exp(-score))
+                    candidates[idx].score = float(normalized_score)
+                # Sort by rerank score descending
+                candidates.sort(key=lambda x: x.score, reverse=True)
+            except Exception:
+                pass # fallback to hybrid score in case of error
+
+        return candidates[:target_k]

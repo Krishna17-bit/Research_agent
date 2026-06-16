@@ -60,6 +60,9 @@ class Settings(BaseSettings):
     index_dir: Path = Path("app/storage/vector_index")
     similarity_threshold: float = 0.20
     reranker_enabled: bool = False
+    reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    hyde_enabled: bool = False
+
 
 
     # OCR/image extraction controls.

@@ -175,12 +175,22 @@ with tab_rag:
     with col_c2:
         chunk_overlap = st.number_input("Chunk Overlap (chars)", min_value=0, max_value=1000, value=settings.chunk_overlap)
         
+    st.write("---")
+    st.write("**Advanced Retrieval Enhancements:**")
+    reranker_enabled = st.checkbox("Enable Cross-Encoder Reranking", value=settings.reranker_enabled)
+    reranker_model = st.text_input("Cross-Encoder Reranker Model", value=settings.reranker_model)
+    hyde_enabled = st.checkbox("Enable HyDE (Hypothetical Document Embeddings)", value=settings.hyde_enabled)
+        
     if st.button("Save RAG Configuration", type="primary"):
         settings.embedding_model = emb_model
         settings.vector_store = vec_store
         settings.chunk_size = chunk_size
         settings.chunk_overlap = chunk_overlap
+        settings.reranker_enabled = reranker_enabled
+        settings.reranker_model = reranker_model
+        settings.hyde_enabled = hyde_enabled
         persist_env_file()
+
 
 with tab_ocr:
     st.subheader("📸 Multi-Modal & Tesseract OCR Parameters")

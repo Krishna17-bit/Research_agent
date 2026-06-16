@@ -13,11 +13,29 @@ class ResearchAgent:
     def __init__(self, retriever: HybridRetriever | None = None):
         self.retriever = retriever or HybridRetriever()
 
+    def generate_hypothetical_answer(self, question: str) -> str:
+        """Generate a hypothetical scientific response to the query to align embedding vectors (HyDE)."""
+        if settings.mock_mode:
+            return f"Hypothetical scientific paragraph detailing the methods, baseline dataset results, and limitations regarding: '{question}'."
+        try:
+            from app.core.schemas import SourceEvidence
+            dummy = [SourceEvidence(chunk_id="hyde", source="hyde", page=1, score=1.0, text="Temporary context")]
+            prompt = f"Write a brief, single-paragraph hypothetical scientific passage that directly answers the question: '{question}'."
+            ans, _, _ = generate_answer(prompt, dummy)
+            return ans
+        except Exception:
+            return question
+
     def ask(self, question: str, top_k: int | None = None, doc_ids: list[str] | None = None) -> RAGAnswer:
         start_time = time.time()
         
-        # 1. Retrieve context
-        evidence = self.retriever.search(question, top_k=top_k, doc_ids=doc_ids)
+        # 1. Generate HyDE query if enabled
+        hyde_query = None
+        if settings.hyde_enabled:
+            hyde_query = self.generate_hypothetical_answer(question)
+            
+        # 2. Retrieve context
+        evidence = self.retriever.search(question, top_k=top_k, doc_ids=doc_ids, hyde_query=hyde_query)
         
         # 2. Generate answer
         answer, used_llm, warnings = generate_answer(question, evidence)

@@ -38,9 +38,22 @@ def init_db() -> None:
                 chunk_count INTEGER DEFAULT 0,
                 status TEXT DEFAULT 'pending',
                 upload_date TEXT,
-                notes TEXT
+                notes TEXT,
+                bibtex TEXT,
+                doi TEXT
             )
         """)
+
+        # Alter table to add columns if updating existing DB
+        try:
+            cursor.execute("ALTER TABLE documents ADD COLUMN bibtex TEXT")
+        except sqlite3.OperationalError:
+            pass # column already exists
+            
+        try:
+            cursor.execute("ALTER TABLE documents ADD COLUMN doi TEXT")
+        except sqlite3.OperationalError:
+            pass # column already exists
 
         # Workspaces table
         cursor.execute("""
@@ -134,15 +147,16 @@ init_db()
 def add_document(doc_id: str, file_name: str, file_path: str, title: str | None = None,
                  authors: str | None = None, year: str | None = None, doc_type: str = "paper",
                  tags: str | None = None, page_count: int = 0, chunk_count: int = 0,
-                 status: str = "pending", notes: str | None = None) -> None:
+                 status: str = "pending", notes: str | None = None, bibtex: str | None = None,
+                 doi: str | None = None) -> None:
     with get_db_connection() as conn:
         conn.execute(
             """
             INSERT OR REPLACE INTO documents 
-            (id, file_name, file_path, title, authors, year, doc_type, tags, page_count, chunk_count, status, upload_date, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (id, file_name, file_path, title, authors, year, doc_type, tags, page_count, chunk_count, status, upload_date, notes, bibtex, doi)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (doc_id, file_name, file_path, title, authors, year, doc_type, tags, page_count, chunk_count, status, datetime.now().isoformat(), notes)
+            (doc_id, file_name, file_path, title, authors, year, doc_type, tags, page_count, chunk_count, status, datetime.now().isoformat(), notes, bibtex, doi)
         )
         conn.commit()
 
@@ -172,7 +186,8 @@ def update_document_metadata(doc_id: str, title: str | None = None, authors: str
                              year: str | None = None, doc_type: str | None = None,
                              tags: str | None = None, notes: str | None = None,
                              status: str | None = None, chunk_count: int | None = None,
-                             page_count: int | None = None) -> None:
+                             page_count: int | None = None, bibtex: str | None = None,
+                             doi: str | None = None) -> None:
     with get_db_connection() as conn:
         fields = []
         params = []
@@ -203,6 +218,12 @@ def update_document_metadata(doc_id: str, title: str | None = None, authors: str
         if page_count is not None:
             fields.append("page_count = ?")
             params.append(page_count)
+        if bibtex is not None:
+            fields.append("bibtex = ?")
+            params.append(bibtex)
+        if doi is not None:
+            fields.append("doi = ?")
+            params.append(doi)
 
         if fields:
             params.append(doc_id)
@@ -352,7 +373,7 @@ def add_eval_run(timestamp: str, dataset: str, provider: str, model: str, score:
         conn.execute(
             """
             INSERT INTO eval_runs (id, timestamp, dataset, provider, model, score, pass_count, fail_count, results_json)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (eval_id, timestamp, dataset, provider, model, score, pass_count, fail_count, results_str)
         )
