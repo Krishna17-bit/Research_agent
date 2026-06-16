@@ -3,8 +3,6 @@ from __future__ import annotations
 import json
 import urllib.request
 import urllib.error
-from pathlib import Path
-from datetime import datetime
 
 from app.core.config import settings
 from app.core.schemas import SourceEvidence
@@ -171,7 +169,6 @@ def call_mock(prompt: str, evidence: list[SourceEvidence]) -> str:
     prompt_lower = prompt.lower()
 
     if "reproducibility checklist" in prompt_lower:
-        title = "Mock Reproducibility Checklist"
         content = f"""### 🔬 Reproducibility Checklist & Verification Summary
 
 Based on {', '.join(docs_list)}, here is the extracted reproducibility outline:

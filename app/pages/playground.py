@@ -7,7 +7,7 @@ from sklearn.preprocessing import normalize
 from app.core import database
 from app.core.config import settings
 from app.core.retriever import HybridRetriever, tokenize
-from app.core.llm import active_provider, generate_answer
+from app.core.llm import generate_answer
 
 st.set_page_config(layout="wide")
 

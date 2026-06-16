@@ -1,7 +1,4 @@
 import streamlit as st
-import pandas as pd
-from pathlib import Path
-from datetime import datetime
 
 from app.core.agent import ResearchAgent
 from app.core import database
@@ -124,7 +121,7 @@ else:
 
             # Export Markdown
             md_content = f"# Question: {st.session_state.active_question}\n{res.answer}\n\n## Evidence Citations\n" + "\n".join(f"- {ev.source} p.{ev.page} (similarity: {ev.score:.3f})" for ev in res.citations)
-            st.download_button("📥 Export Answer as Markdown", md_content, file_name=f"research_answer.md")
+            st.download_button("📥 Export Answer as Markdown", md_content, file_name="research_answer.md")
 
             # Display passages
             st.write("### 📌 Supporting Evidence Chunks")

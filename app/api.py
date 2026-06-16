@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from pydantic import BaseModel
@@ -8,8 +7,7 @@ from pydantic import BaseModel
 from app.core.agent import ResearchAgent
 from app.core.config import settings
 from app.core.retriever import HybridRetriever
-from app.core.llm import active_provider, generate_answer
-from app.core.schemas import RAGAnswer, SourceEvidence
+from app.core.llm import active_provider
 from app.core import database
 
 api = FastAPI(
@@ -79,7 +77,6 @@ def upload_document(file: UploadFile = File(...)):
             
         retriever = HybridRetriever()
         count = retriever.build_from_paths([out_path])
-        doc_id = Path(out_path).name  # simplified
         
         # Look up added doc to return detail
         return {"status": "success", "indexed_chunks": count, "filename": file.filename}

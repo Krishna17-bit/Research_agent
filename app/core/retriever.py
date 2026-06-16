@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-import pickle
 import re
 import numpy as np
 from rank_bm25 import BM25Okapi

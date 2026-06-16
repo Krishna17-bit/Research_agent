@@ -370,7 +370,7 @@ def extract_metadata(path: Path) -> dict:
                     meta["doc_type"] = "report"
                 
                 if not title or len(title.strip()) < 5:
-                    lines = [l.strip() for l in first_page_text.split("\n") if l.strip()]
+                    lines = [line.strip() for line in first_page_text.split("\n") if line.strip()]
                     if lines:
                         meta["title"] = lines[0][:150]
         except Exception:

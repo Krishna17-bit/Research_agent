@@ -1,9 +1,7 @@
-from pathlib import Path
 import re
 
-from app.core.pdf_loader import find_doi, fetch_crossref_metadata, search_crossref_by_title
+from app.core.pdf_loader import find_doi, fetch_crossref_metadata
 from app.core.retriever import HybridRetriever
-from app.core.schemas import SourceEvidence
 from app.core.config import settings
 
 

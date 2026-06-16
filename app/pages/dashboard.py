@@ -6,7 +6,6 @@ from datetime import datetime
 from app.core import database
 from app.core.config import settings
 from app.core.llm import active_provider
-from app.core.retriever import HybridRetriever
 
 st.set_page_config(layout="wide")
 

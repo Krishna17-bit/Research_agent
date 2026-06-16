@@ -1,5 +1,4 @@
 import streamlit as st
-from pathlib import Path
 
 from app.core.config import settings
 from app.core.retriever import HybridRetriever
